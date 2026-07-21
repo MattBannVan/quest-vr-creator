@@ -1,0 +1,67 @@
+name: Deploy Quest VR Creator to GitHub Pages
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for validation)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate JavaScript Syntax (Error Reduction Hook)
+        run: |
+          echo "Extracting and validating script sections for less errors and more intelligence..."
+          # Extract inline script and check syntax
+          node --input-type=module -e '
+            const fs = require("fs");
+            const html = fs.readFileSync("index.html", "utf8");
+            const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
+            if (scriptMatch && scriptMatch[1]) {
+              try {
+                new Function(scriptMatch[1]);
+                console.log("✅ JavaScript syntax validation PASSED - no parse errors");
+              } catch (e) {
+                console.error("❌ JavaScript syntax ERROR:", e.message);
+                process.exit(1);
+              }
+            } else {
+              console.log("No inline script found or validation skipped");
+            }
+          '
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
