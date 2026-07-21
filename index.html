@@ -26,7 +26,7 @@
 
       <!-- Player Rig -->
       <a-entity id="player" position="0 1.6 0">
-        <a-camera></a-camera>
+        <a-camera id="camera"></a-camera>
         
         <!-- Left Controller -->
         <a-entity id="left-hand" oculus-touch-controls="hand: left" super-hands raycaster="objects: .raycaster-target; interval: 0;" line="color: #00FF00; opacity: 0.5"></a-entity>
@@ -39,8 +39,8 @@
       <a-entity id="tablet" position="0 1.2 -1" rotation="0 0 0" geometry="primitive: plane; width: 0.8; height: 0.6" material="color: #222288; shader: flat" class="raycaster-target">
         <!-- UI elements will be added dynamically via JS -->
         <a-text id="tablet-title" value="Object Creator" position="0 0.2 0.01" align="center" color="#FFFFFF" width="0.7"></a-text>
-        <a-entity id="create-cube" position="-0.2 0 0.01" geometry="primitive: box; width: 0.15; height: 0.15; depth: 0.05" material="color: #4CC3D9" event-set__click="_target: #player; spawn-object: type: cube"></a-entity>
-        <!-- More buttons -->
+        <a-entity id="create-cube" position="-0.2 0 0.01" geometry="primitive: box; width: 0.15; height: 0.15; depth: 0.05" material="color: #4CC3D9" spawn-object="type: cube"></a-entity>
+        <!-- More buttons can be added dynamically -->
       </a-entity>
 
       <!-- Sky -->
@@ -48,32 +48,77 @@
     </a-scene>
 
     <script>
-      // Custom component for spawning objects
+      // Error Mitigation Hook - global for less errors
+      window.addEventListener('error', (e) => {
+        console.error('VR Creator Global Error (non-blocking, logged for debugging):', e.message, 'at', e.filename + ':' + e.lineno);
+      });
+
+      // Custom component for spawning objects - improved with intelligence and error handling
       AFRAME.registerComponent('spawn-object', {
         schema: { type: {default: 'cube'} },
         init: function () {
+          const self = this;
           this.el.addEventListener('click', () => {
-            const scene = document.querySelector('a-scene');
-            const newObj = document.createElement('a-entity');
-            
-            if (this.data.type === 'cube') {
-              newObj.setAttribute('geometry', 'primitive: box; width: 0.5; height: 0.5; depth: 0.5');
-              newObj.setAttribute('material', 'color: #FFCC00');
-              newObj.setAttribute('position', '0 1.5 -2');
-              newObj.setAttribute('dynamic-body', 'shape: box');
-              newObj.setAttribute('class', 'raycaster-target');
+            try {
+              const scene = document.querySelector('a-scene');
+              const camera = document.querySelector('#camera');
+              const newObj = document.createElement('a-entity');
+              
+              // Intelligent dynamic positioning: spawn ~1.5m in front of camera at comfortable height
+              let spawnPos = '0 1.5 -2'; // fallback
+              if (camera && camera.object3D) {
+                const camPos = camera.object3D.position;
+                const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
+                const offset = camDir.multiplyScalar(1.5); // 1.5m in front
+                const posX = (camPos.x + offset.x).toFixed(2);
+                const posY = (camPos.y + 0.5).toFixed(2); // slightly below eye for table-like
+                const posZ = (camPos.z + offset.z).toFixed(2);
+                spawnPos = `${posX} ${posY} ${posZ}`;
+              }
+              
+              if (this.data.type === 'cube') {
+                newObj.setAttribute('geometry', 'primitive: box; width: 0.5; height: 0.5; depth: 0.5');
+                newObj.setAttribute('material', 'color: #FFCC00');
+                newObj.setAttribute('position', spawnPos);
+                newObj.setAttribute('dynamic-body', 'shape: box');
+                newObj.setAttribute('class', 'raycaster-target');
+                // Add super-hands compatibility if needed
+              }
+              
+              scene.appendChild(newObj);
+              console.log('✅ Spawned intelligent ' + this.data.type + ' at', spawnPos);
+              
+              // Update state hook example
+              if (window.VRCreatorState) {
+                window.VRCreatorState.spawnedCount = (window.VRCreatorState.spawnedCount || 0) + 1;
+              }
+            } catch (err) {
+              console.error('Spawn Error (caught, non-blocking):', err);
             }
-            
-            scene.appendChild(newObj);
-            console.log('Spawned object');
           });
         }
       });
 
-      // Joystick movement handling
+      // Joystick movement handling + init hooks
       window.addEventListener('load', () => {
-        console.log('Quest VR Creator loaded successfully. Tailored for Meta Quest 3.');
-        // Additional dynamic UI and event setup can go here
+        try {
+          console.log('✅ Quest VR Creator loaded successfully. Tailored for Meta Quest 3 with Grok automations.');
+          
+          // Initialize app state for intelligence
+          window.VRCreatorState = {
+            selectedTool: 'cube',
+            spawnedCount: 0,
+            lastSpawnPos: null
+          };
+          
+          // Example: future hook for dynamic tablet buttons
+          // const tablet = document.querySelector('#tablet');
+          // Add more UI entities here via JS for multi-tool support
+          
+          console.log('State initialized. Ready for VR interactions.');
+        } catch (err) {
+          console.error('Load Init Error (caught):', err);
+        }
       });
     </script>
   </body>
