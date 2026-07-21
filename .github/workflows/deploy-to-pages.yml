@@ -28,24 +28,28 @@ jobs:
 
       - name: Validate JavaScript Syntax (Error Reduction Hook)
         run: |
-          echo "Extracting and validating script sections for less errors and more intelligence..."
-          # Extract inline script and check syntax
-          node --input-type=module -e '
+          echo "Extracting script and running syntax validation to catch errors early..."
+          # Write inline script to temp file for --check (syntax only, no execution/runtime errors from missing DOM/AFRAME)
+          node -e '
             const fs = require("fs");
             const html = fs.readFileSync("index.html", "utf8");
             const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
             if (scriptMatch && scriptMatch[1]) {
-              try {
-                new Function(scriptMatch[1]);
-                console.log("✅ JavaScript syntax validation PASSED - no parse errors");
-              } catch (e) {
-                console.error("❌ JavaScript syntax ERROR:", e.message);
-                process.exit(1);
-              }
+              const code = scriptMatch[1].trim();
+              fs.writeFileSync("/tmp/vr-script.js", code);
+              console.log("Script extracted, length:", code.length);
             } else {
-              console.log("No inline script found or validation skipped");
+              console.log("No script tag found");
+              process.exit(0);
             }
           '
+          # Now syntax check only - catches parse errors without running browser-specific code
+          if node --check /tmp/vr-script.js; then
+            echo "✅ JavaScript syntax validation PASSED - no syntax errors detected"
+          else
+            echo "❌ JavaScript syntax ERROR detected - failing build to prevent deploying broken code"
+            exit 1
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
