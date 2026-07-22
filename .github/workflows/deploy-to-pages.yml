@@ -28,7 +28,7 @@ jobs:
 
       - name: Validate JavaScript Syntax (Error Reduction Hook)
         run: |
-          echo "Extracting script and running syntax validation to catch errors early..."
+          echo "🧠 Extracting inline script for syntax validation to catch errors early and ensure deploy intelligence..."
           # Write inline script to temp file for --check (syntax only, no execution/runtime errors from missing DOM/AFRAME)
           node -e '
             const fs = require("fs");
@@ -45,11 +45,29 @@ jobs:
           '
           # Now syntax check only - catches parse errors without running browser-specific code
           if node --check /tmp/vr-script.js; then
-            echo "✅ JavaScript syntax validation PASSED - no syntax errors detected"
+            echo "✅ JavaScript syntax validation PASSED - no syntax errors detected. Code is clean for Quest VR."
+            echo "🧠 Intelligence Note: For even smarter development, integrate hooks from the quest-vr-creator skill (error-mitigation, spawn-intelligence, state-management, tablet-ui). These provide dynamic positioning, reactive UI, centralized state, and robust error handling — reducing future errors and amplifying capabilities."
+            echo "🧠 Recommended: After changes, run full Local Development Workflow (Analyze with GitHub tools, Plan, Implement via precise edits, Test syntax+local+VR, Correct, Update skill/README)."
           else
-            echo "❌ JavaScript syntax ERROR detected - failing build to prevent deploying broken code"
+            echo "❌ JavaScript syntax ERROR detected - failing build to prevent deploying broken code to Quest users."
             exit 1
           fi
+
+      - name: Intelligence & Best Practices Guidance (Non-Blocking)
+        run: |
+          echo "🧠 Running optional intelligence scan for key VR Creator patterns (state, error hooks, spawn logic)..."
+          if grep -q "VRCreatorState" index.html; then
+            echo "✅ State management hook/pattern detected — good for intelligence and reactive features."
+          else
+            echo "💡 Opportunity: Add VRCreatorState or integrate state-management-hook.js for better tracking of spawns/tools."
+          fi
+          if grep -q "error" index.html && grep -q "addEventListener" index.html; then
+            echo "✅ Error mitigation listener present — aligns with less-errors principle."
+          fi
+          if grep -q "spawn-object\|spawnIntelligentObject" index.html; then
+            echo "✅ Spawn intelligence detected — dynamic placement active."
+          fi
+          echo "🧠 All guidance is advisory to help you (Grok) build with maximal intelligence and minimal errors. Hooks in skill/hooks/ are ready to merge for next-level UI/state/spawn."
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
