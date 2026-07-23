@@ -7,6 +7,11 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.1.0/dist/aframe-physics-system.js"></script>
     <script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
     <script src="https://unpkg.com/super-hands@3.0.6/dist/super-hands.min.js"></script>
+    <!-- Intelligence Hooks: modular, error-resistant, stateful, dynamic UI & spawn logic for less errors + more intelligence -->
+    <script src="hooks/error-mitigation-hook.js"></script>
+    <script src="hooks/state-management-hook.js"></script>
+    <script src="hooks/spawn-intelligence-hook.js"></script>
+    <script src="hooks/tablet-ui-hook.js"></script>
     <style>
       body { margin: 0; }
     </style>
@@ -35,12 +40,10 @@
         <a-entity id="right-hand" oculus-touch-controls="hand: right" super-hands raycaster="objects: .raycaster-target; interval: 0;" line="color: #FF0000; opacity: 0.5"></a-entity>
       </a-entity>
 
-      <!-- 3D Tablet for UI -->
+      <!-- 3D Tablet for UI - buttons populated dynamically by tablet-ui-hook for multi-tool intelligence -->
       <a-entity id="tablet" position="0 1.2 -1" rotation="0 0 0" geometry="primitive: plane; width: 0.8; height: 0.6" material="color: #222288; shader: flat" class="raycaster-target">
-        <!-- UI elements will be added dynamically via JS -->
+        <!-- Title managed by hook; buttons added via initTabletUI() -->
         <a-text id="tablet-title" value="Object Creator" position="0 0.2 0.01" align="center" color="#FFFFFF" width="0.7"></a-text>
-        <a-entity id="create-cube" position="-0.2 0 0.01" geometry="primitive: box; width: 0.15; height: 0.15; depth: 0.05" material="color: #4CC3D9" spawn-object="type: cube" class="raycaster-target"></a-entity>
-        <!-- More buttons can be added dynamically -->
       </a-entity>
 
       <!-- Sky -->
@@ -48,76 +51,32 @@
     </a-scene>
 
     <script>
-      // Error Mitigation Hook - global for less errors
-      window.addEventListener('error', (e) => {
-        console.error('VR Creator Global Error (non-blocking, logged for debugging):', e.message, 'at', e.filename + ':' + e.lineno);
-      });
-
-      // Custom component for spawning objects - improved with intelligence and error handling
-      AFRAME.registerComponent('spawn-object', {
-        schema: { type: {default: 'cube'} },
-        init: function () {
-          const self = this;
-          this.el.addEventListener('click', () => {
-            try {
-              const scene = document.querySelector('a-scene');
-              const camera = document.querySelector('#camera');
-              const newObj = document.createElement('a-entity');
-              
-              // Intelligent dynamic positioning: spawn ~1.5m in front of camera at comfortable height
-              let spawnPos = '0 1.5 -2'; // fallback
-              if (camera && camera.object3D) {
-                const camPos = camera.object3D.position;
-                const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
-                const offset = camDir.multiplyScalar(1.5); // 1.5m in front
-                const posX = (camPos.x + offset.x).toFixed(2);
-                const posY = (camPos.y + 0.5).toFixed(2); // slightly below eye for table-like
-                const posZ = (camPos.z + offset.z).toFixed(2);
-                spawnPos = `${posX} ${posY} ${posZ}`;
-              }
-              
-              if (this.data.type === 'cube') {
-                newObj.setAttribute('geometry', 'primitive: box; width: 0.5; height: 0.5; depth: 0.5');
-                newObj.setAttribute('material', 'color: #FFCC00');
-                newObj.setAttribute('position', spawnPos);
-                newObj.setAttribute('dynamic-body', 'shape: box');
-                newObj.setAttribute('class', 'raycaster-target');
-                // Add super-hands compatibility if needed
-              }
-              
-              scene.appendChild(newObj);
-              console.log('✅ Spawned intelligent ' + this.data.type + ' at', spawnPos);
-              
-              // Update state hook example
-              if (window.VRCreatorState) {
-                window.VRCreatorState.spawnedCount = (window.VRCreatorState.spawnedCount || 0) + 1;
-              }
-            } catch (err) {
-              console.error('Spawn Error (caught, non-blocking):', err);
-            }
-          });
-        }
-      });
-
-      // Joystick movement handling + init hooks
+      // Main initialization - hooks provide error mitigation, state, intelligent spawn, and reactive tablet UI
+      // This replaces previous inline spawn-object and basic state for modular, extensible, tested intelligence
       window.addEventListener('load', () => {
         try {
-          console.log('✅ Quest VR Creator loaded successfully. Tailored for Meta Quest 3 with Grok automations.');
+          console.log('✅ Quest VR Creator loaded successfully with full Grok automations intelligence stack.');
           
-          // Initialize app state for intelligence
-          window.VRCreatorState = {
-            selectedTool: 'cube',
-            spawnedCount: 0,
-            lastSpawnPos: null
-          };
-          
-          // Example: future hook for dynamic tablet buttons
-          // const tablet = document.querySelector('#tablet');
-          // Add more UI entities here via JS for multi-tool support
-          
-          console.log('State initialized. Ready for VR interactions.');
+          // Initialize the intelligent tablet UI: creates 3 tool buttons (C/S/Y), reactive stats, state listeners
+          if (typeof window.initTabletUI === 'function') {
+            window.initTabletUI();
+          } else {
+            console.warn('⚠️ initTabletUI not available - check hook loading order');
+          }
+
+          // Optional: set initial tool via state hook
+          if (typeof window.selectTool === 'function') {
+            window.selectTool('cube');
+          }
+
+          // Trigger initial state update for any listeners
+          if (typeof window.updateVRState === 'function') {
+            window.updateVRState({ lastInteraction: Date.now() });
+          }
+
+          console.log('🧠 All intelligence active: camera-aware spawning, centralized state+undo, error hooks, reactive multi-tool UI. Ready for Meta Quest 3 VR creation!');
         } catch (err) {
-          console.error('Load Init Error (caught):', err);
+          console.error('Main Load Init Error (caught & mitigated by error hook):', err);
         }
       });
     </script>
