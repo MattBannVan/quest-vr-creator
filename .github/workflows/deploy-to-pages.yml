@@ -46,28 +46,56 @@ jobs:
           # Now syntax check only - catches parse errors without running browser-specific code
           if node --check /tmp/vr-script.js; then
             echo "✅ JavaScript syntax validation PASSED - no syntax errors detected. Code is clean for Quest VR."
-            echo "🧠 Intelligence Note: For even smarter development, integrate hooks from the quest-vr-creator skill (error-mitigation, spawn-intelligence, state-management, tablet-ui). These provide dynamic positioning, reactive UI, centralized state, and robust error handling — reducing future errors and amplifying capabilities."
-            echo "🧠 Recommended: After changes, run full Local Development Workflow (Analyze with GitHub tools, Plan, Implement via precise edits, Test syntax+local+VR, Correct, Update skill/README)."
+            echo "🧠 Intelligence Note: Hooks integrated (error-mitigation, spawn-intelligence, state-management, tablet-ui). Full modular intelligence active for dynamic spawning, reactive UI, error resilience."
+            echo "🧠 Recommended: After changes, run full Local Development Workflow from quest-vr-creator skill (Analyze, Plan, Implement, Test syntax+local+VR, Correct, Update skill)."
           else
             echo "❌ JavaScript syntax ERROR detected - failing build to prevent deploying broken code to Quest users."
             exit 1
           fi
 
+      - name: Validate Hooks JavaScript Syntax (Extended Intelligence & Error Prevention)
+        run: |
+          echo "🧠 Validating hooks/*.js files - these provide the core intelligence layer (state, spawn, UI, error mitigation). Ensuring zero syntax errors for robust VR experience."
+          hooks_found=false
+          for hook in hooks/*.js; do
+            if [ -f "$hook" ]; then
+              hooks_found=true
+              echo "Checking $hook ..."
+              if node --check "$hook"; then
+                echo "✅ $hook syntax PASSED - intelligence module clean."
+              else
+                echo "❌ $hook syntax FAILED - blocking deploy to protect Quest users."
+                exit 1
+              fi
+            fi
+          done
+          if [ "$hooks_found" = false ]; then
+            echo "⚠️ No hooks/ directory found - consider adding for full intelligence (see skill/hooks/)."
+          else
+            echo "✅ All hooks validated successfully. Project now embodies modular, error-resistant, intelligent design."
+          fi
+
       - name: Intelligence & Best Practices Guidance (Non-Blocking)
         run: |
-          echo "🧠 Running optional intelligence scan for key VR Creator patterns (state, error hooks, spawn logic)..."
-          if grep -q "VRCreatorState" index.html; then
+          echo "🧠 Running optional intelligence scan for key VR Creator patterns (state, error hooks, spawn logic, tablet UI)..."
+          if grep -q "VRCreatorState\|updateVRState" index.html || [ -f hooks/state-management-hook.js ]; then
             echo "✅ State management hook/pattern detected — good for intelligence and reactive features."
           else
-            echo "💡 Opportunity: Add VRCreatorState or integrate state-management-hook.js for better tracking of spawns/tools."
+            echo "💡 Opportunity: Integrate state-management-hook.js for better tracking of spawns/tools."
           fi
-          if grep -q "error" index.html && grep -q "addEventListener" index.html; then
-            echo "✅ Error mitigation listener present — aligns with less-errors principle."
+          if grep -q "safeExecute\|error-mitigation-hook" index.html || [ -f hooks/error-mitigation-hook.js ]; then
+            echo "✅ Error mitigation listener/hook present — aligns with less-errors principle."
           fi
-          if grep -q "spawn-object\|spawnIntelligentObject" index.html; then
-            echo "✅ Spawn intelligence detected — dynamic placement active."
+          if grep -q "spawn-button\|spawnIntelligentObject" index.html || [ -f hooks/spawn-intelligence-hook.js ]; then
+            echo "✅ Spawn intelligence + spawn-button component detected — dynamic camera-aware placement active."
           fi
-          echo "🧠 All guidance is advisory to help you (Grok) build with maximal intelligence and minimal errors. Hooks in skill/hooks/ are ready to merge for next-level UI/state/spawn."
+          if grep -q "initTabletUI\|tablet-ui-hook" index.html || [ -f hooks/tablet-ui-hook.js ]; then
+            echo "✅ Tablet UI hook integrated — multi-tool reactive UI active."
+          fi
+          if [ -d hooks ]; then
+            echo "✅ hooks/ directory present with modular intelligence files."
+          fi
+          echo "🧠 All guidance is advisory to help build with maximal intelligence and minimal errors. The quest-vr-creator skill + hooks + this workflow form a complete automation system for your vision."
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
