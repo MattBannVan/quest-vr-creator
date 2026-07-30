@@ -90,7 +90,7 @@
       ></a-entity>
     </a-entity>
 
-    <!-- 3D Tablet foundation (taller for 5 tools + 13 actions in 4 rows) -->
+    <!-- 3D Tablet foundation (taller for 5 tools + actions in rows) -->
     <a-entity
       id="tablet"
       position="0 1.25 -0.9"
@@ -118,7 +118,7 @@
             window.updateVRState({ selectedTool: 'cube' });
           }
 
-          // Build the full tablet UI (5 primitives + 13 actions)
+          // Build the full tablet UI (5 primitives + actions)
           if (typeof window.initTabletUI === 'function') {
             window.initTabletUI();
           }
@@ -133,7 +133,26 @@
             window.loadSceneFromHash();
           }
 
-          console.log('🚀 Quest VR Creator boot complete — all intelligence layers active.');
+          // Avatar hands polish (semi-transparent 0.55 on model-loaded + timeout for ethereal vision alignment)
+          ['#leftHand', '#rightHand'].forEach(function(sel) {
+            const hand = document.querySelector(sel);
+            if (hand) {
+              const applyOpacity = function() {
+                if (hand.object3D) {
+                  hand.object3D.traverse(function(o) {
+                    if (o.isMesh && o.material) {
+                      o.material.transparent = true;
+                      o.material.opacity = 0.55;
+                    }
+                  });
+                }
+              };
+              hand.addEventListener('model-loaded', applyOpacity);
+              setTimeout(applyOpacity, 1500); // fallback
+            }
+          });
+
+          console.log('🚀 Quest VR Creator boot complete — all intelligence layers active (incl avatar hands polish).');
         }, 'Main Boot');
       }
 
@@ -149,7 +168,7 @@
         window.addEventListener('load', boot);
       }
 
-      // Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear)
+      // Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o opacity)
       window.addEventListener('keydown', function(e) {
         window.safeExecute(function() {
           if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -167,6 +186,7 @@
           else if (key === 'g') { window.exportSceneGLTF && window.exportSceneGLTF(); }
           else if (key === 'x') { window.shareSceneViaHash && window.shareSceneViaHash(); }
           else if (key === 'h') { window.toggleHolographic && window.toggleHolographic(); }
+          else if (key === 'o') { window.adjustMaterial && window.adjustMaterial('opacity', e.shiftKey ? -0.1 : 0.1); }
           else if (key === 'd') {
             const state = window.VRCreatorState;
             if (state && state.spawnedObjects && state.spawnedObjects.length) {
