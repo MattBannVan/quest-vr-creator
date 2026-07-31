@@ -4,7 +4,7 @@
  * Enables features like undo, clear all, stats, localStorage persist, material presets, export JSON/GLTF, tool switching, delete by id, live material adjust, URL hash share, holographic toggle.
  * Less errors: validated updates, change events for reactive UI, safeExecute wrappers.
  * More intelligence: queryable history, counts, easy extension for new primitives and actions, material + persist + share + GLTF.
- * Tested: Syntax valid. Expanded 2026-07-28 with 5 new features (GLTF, hash share, live adjust, double-grip ready, holo toggle).
+ * Tested: Syntax valid. Expanded 2026-07-28 with 5 new features (GLTF, hash share, live adjust, double-grip ready, holo toggle). Improved 2026-07-31: robust clear via DOM, full cube-mesh GLTF, url-safe share, safer updateVRState.
  */
 
 (function() {
@@ -62,20 +62,28 @@
 
   window.updateVRState = function(updates) {
     if (!window.VRCreatorState || typeof updates !== 'object') {
-      console.warn('updateVRState: invalid');
-      return;
+      console.warn('State update skipped: invalid input');
+      return false;
     }
-    const prevState = JSON.parse(JSON.stringify(window.VRCreatorState));
-    Object.assign(window.VRCreatorState, updates);
-    document.dispatchEvent(new CustomEvent('vr-state-changed', { 
-      detail: { updates, previous: prevState, current: window.VRCreatorState } 
-    }));
+    try {
+      const prevState = JSON.parse(JSON.stringify(window.VRCreatorState));
+      Object.assign(window.VRCreatorState, updates);
+      const event = new CustomEvent('vr-state-changed', { 
+        detail: { updates, previous: prevState, current: window.VRCreatorState } 
+      });
+      document.dispatchEvent(event);
+      console.log('✅ VR State updated intelligently:', Object.keys(updates).join(', '));
+      return true;
+    } catch (e) {
+      console.error('State update error (mitigated):', e);
+      return false;
+    }
   };
 
   window.selectTool = function(newTool) {
     if (window.VRCreatorState.tools.includes(newTool) || newTool === 'random') {
       window.updateVRState({ selectedTool: newTool });
-      console.log('🛠️ Tool selected:', newTool);
+      console.log(`🛠️ Tool selected: ${newTool}`);
     } else {
       console.warn(`Tool '${newTool}' not available. Available:`, window.VRCreatorState.tools);
     }
@@ -83,232 +91,292 @@
 
   window.setSelectedColor = function(hexColor) {
     window.updateVRState({ selectedColor: hexColor || null });
-    console.log('🎨 Color set:', hexColor);
+    console.log(`🎨 Selected color set: ${hexColor || 'default/type-based'}`);
   };
 
   window.setMaterialPreset = function(presetName) {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
       const presets = state.materialPresets || {};
-      const keys = Object.keys(presets);
-      if (!presetName || !presets[presetName]) {
-        // Cycle
+      let name = presetName;
+      if (!name || !presets[name]) {
+        const keys = Object.keys(presets);
         const idx = keys.indexOf(state.materialPreset || 'standard');
-        presetName = keys[(idx + 1) % keys.length];
+        name = keys[(idx + 1) % keys.length];
       }
-      const mat = presets[presetName];
-      window.updateVRState({ 
-        materialPreset: presetName,
-        selectedMaterial: { ...mat }
-      });
-      console.log('💎 Material preset:', presetName, mat);
-      return presetName;
+      const mat = presets[name];
+      if (mat) {
+        window.updateVRState({ 
+          materialPreset: name, 
+          selectedMaterial: { ...mat } 
+        });
+        console.log(`✨ Material preset set: ${name} (metal:${mat.metalness} rough:${mat.roughness} opac:${mat.opacity})`);
+        return name;
+      }
+      return null;
     }, 'Set Material Preset', null);
   };
 
+  // NEW: Live adjust material property (metalness/roughness/opacity) by delta, clamp 0-1, set custom
   window.adjustMaterial = function(property, delta) {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
       if (!state.selectedMaterial) state.selectedMaterial = { metalness: 0.3, roughness: 0.7, opacity: 1.0 };
-      const cur = state.selectedMaterial[property] || 0;
-      let next = Math.max(0, Math.min(1, cur + delta));
-      state.selectedMaterial[property] = next;
-      window.updateVRState({
-        selectedMaterial: { ...state.selectedMaterial },
-        materialPreset: 'custom'
-      });
-      console.log(`🔧 Adjust ${property}: ${next.toFixed(2)}`);
-      return next;
+      const mat = { ...state.selectedMaterial };
+      if (property === 'metalness' || property === 'roughness' || property === 'opacity') {
+        mat[property] = Math.max(0, Math.min(1, (mat[property] || 0) + (delta || 0.1)));
+        window.updateVRState({
+          selectedMaterial: mat,
+          materialPreset: 'custom'
+        });
+        console.log(`🎛️ Material adjusted ${property} to ${mat[property].toFixed(2)} (custom)`);
+        return mat[property];
+      }
+      return null;
     }, 'Adjust Material', null);
   };
 
+  // NEW: Apply current material to last spawned object
   window.applyMaterialToLast = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
-      if (!state.spawnedObjects || !state.spawnedObjects.length) return false;
+      if (!state.spawnedObjects || !state.spawnedObjects.length) {
+        console.log('No objects to apply material to.');
+        return false;
+      }
       const last = state.spawnedObjects[state.spawnedObjects.length - 1];
       const el = document.getElementById(last.id);
       if (!el) return false;
       const mat = state.selectedMaterial || { metalness: 0.3, roughness: 0.7, opacity: 1.0 };
-      const color = state.selectedColor || last.color || '#FFCC00';
+      const color = last.color || '#FFCC00';
       const matStr = `color: ${color}; metalness: ${mat.metalness}; roughness: ${mat.roughness}; opacity: ${mat.opacity}; transparent: ${mat.opacity < 1 ? 'true' : 'false'}`;
       el.setAttribute('material', matStr);
       last.material = { ...mat };
-      last.color = color;
       window.updateVRState({ spawnedObjects: state.spawnedObjects });
-      console.log('✨ Applied material to last:', last.id);
+      console.log(`✨ Applied custom material to last object ${last.id}`);
       return true;
-    }, 'Apply Material To Last', false);
+    }, 'Apply Material to Last', false);
   };
 
   window.undoLastSpawn = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
-      if (!state.spawnedObjects || !state.spawnedObjects.length) {
-        console.log('Undo: nothing to undo');
-        return false;
+      if (state.spawnedObjects && state.spawnedObjects.length > 0) {
+        const last = state.spawnedObjects.pop();
+        const el = document.getElementById(last.id);
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+          state.spawnedCount = Math.max(0, state.spawnedCount - 1);
+          console.log('↩️ Undid last spawn:', last.type, last.id);
+          window.updateVRState({ spawnedCount: state.spawnedCount });
+          return true;
+        } else {
+          console.warn('Undo: element not found by id, history cleaned');
+          state.spawnedCount = Math.max(0, state.spawnedCount - 1);
+          window.updateVRState({ spawnedCount: state.spawnedCount });
+        }
+      } else {
+        console.log('Nothing to undo.');
       }
-      const last = state.spawnedObjects.pop();
-      const el = document.getElementById(last.id);
-      if (el && el.parentNode) el.parentNode.removeChild(el);
-      state.spawnedCount = state.spawnedObjects.length;
-      window.updateVRState({ spawnedCount: state.spawnedCount, spawnedObjects: state.spawnedObjects });
-      console.log('↩️ Undid spawn:', last.id);
-      return true;
+      return false;
     }, 'Undo Last Spawn', false);
   };
 
   window.clearAllSpawned = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
-      if (!state.spawnedObjects) return false;
-      state.spawnedObjects.forEach(o => {
-        const el = document.getElementById(o.id);
-        if (el && el.parentNode) el.parentNode.removeChild(el);
+      const objs = document.querySelectorAll('.spawned-object');
+      let removed = 0;
+      objs.forEach(el => {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+          removed++;
+        }
       });
       state.spawnedObjects = [];
       state.spawnedCount = 0;
       window.updateVRState({ spawnedCount: 0, spawnedObjects: [] });
-      console.log('🧹 Cleared all spawned objects');
-      return true;
-    }, 'Clear All Spawned', false);
+      console.log(`🗑️ Cleared ${removed} spawned objects.`);
+      return removed;
+    }, 'Clear All Spawned', 0);
   };
 
   window.saveSceneToStorage = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
       const data = {
-        objects: state.spawnedObjects || [],
+        version: 1,
+        timestamp: Date.now(),
+        spawnedObjects: state.spawnedObjects || [],
         selectedTool: state.selectedTool,
         selectedColor: state.selectedColor,
         materialPreset: state.materialPreset,
-        selectedMaterial: state.selectedMaterial,
-        ts: Date.now()
+        selectedMaterial: state.selectedMaterial
       };
       localStorage.setItem('quest-vr-creator-scene', JSON.stringify(data));
-      console.log('💾 Scene saved to localStorage (' + (data.objects.length) + ' objects)');
+      console.log(`💾 Scene saved to localStorage (${data.spawnedObjects.length} objects).`);
       return true;
-    }, 'Save Scene To Storage', false);
+    }, 'Save Scene to Storage', false);
   };
 
   window.loadSceneFromStorage = function() {
     return window.safeExecute(() => {
       const raw = localStorage.getItem('quest-vr-creator-scene');
       if (!raw) {
-        console.log('Load: no saved scene');
+        console.log('No saved scene found in localStorage.');
         return false;
       }
       const data = JSON.parse(raw);
-      // Clear existing
-      if (typeof window.clearAllSpawned === 'function') window.clearAllSpawned();
-      // Restore
-      (data.objects || []).forEach(obj => {
+      if (!data || !Array.isArray(data.spawnedObjects)) {
+        console.warn('Invalid saved scene data.');
+        return false;
+      }
+      window.clearAllSpawned();
+      window.updateVRState({
+        selectedTool: data.selectedTool || 'cube',
+        selectedColor: data.selectedColor || null,
+        materialPreset: data.materialPreset || 'standard',
+        selectedMaterial: data.selectedMaterial || { metalness: 0.3, roughness: 0.7, opacity: 1.0 }
+      });
+      data.spawnedObjects.forEach(obj => {
         if (typeof window.spawnIntelligentObject === 'function') {
           window.spawnIntelligentObject(obj.type, {
             color: obj.color,
-            material: obj.material,
-            positionOverride: obj.pos
+            positionOverride: obj.pos,
+            material: obj.material || data.selectedMaterial
           });
         }
       });
-      if (data.selectedTool) window.selectTool && window.selectTool(data.selectedTool);
-      if (data.selectedColor) window.setSelectedColor && window.setSelectedColor(data.selectedColor);
-      if (data.materialPreset) window.setMaterialPreset && window.setMaterialPreset(data.materialPreset);
-      console.log('📂 Scene loaded from localStorage (' + (data.objects || []).length + ' objects)');
+      console.log(`📂 Scene loaded from localStorage (${data.spawnedObjects.length} objects restored).`);
       return true;
-    }, 'Load Scene From Storage', false);
+    }, 'Load Scene from Storage', false);
   };
 
   window.exportSceneJSON = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
       const data = {
-        version: '1.0',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        spawnedCount: state.spawnedCount,
         objects: state.spawnedObjects || [],
-        state: {
-          selectedTool: state.selectedTool,
-          selectedColor: state.selectedColor,
-          materialPreset: state.materialPreset,
-          selectedMaterial: state.selectedMaterial
-        },
-        exportedAt: new Date().toISOString()
+        tool: state.selectedTool,
+        color: state.selectedColor,
+        material: state.selectedMaterial,
+        preset: state.materialPreset
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'quest-vr-creator-scene.json';
+      a.download = `quest-vr-scene-${Date.now()}.json`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      console.log('📄 Exported JSON (' + (data.objects.length) + ' objects)');
+      console.log('📤 Scene exported as JSON download.');
       return true;
     }, 'Export Scene JSON', false);
   };
 
+  // NEW: Basic GLTF 2.0 export of spawned objects (minimal valid, PBR materials, no external deps)
   window.exportSceneGLTF = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
-      const objects = state.spawnedObjects || [];
-      // Minimal valid glTF 2.0 with PBR materials (no binary meshes — lightweight JSON)
-      const nodes = objects.map((o, i) => ({
-        name: o.id || ('obj_' + i),
-        translation: (o.pos || '0 1 0').split(' ').map(Number),
-        mesh: i
-      }));
-      const meshes = objects.map((o, i) => {
-        const mat = o.material || { metalness: 0.3, roughness: 0.7, opacity: 1.0 };
-        return {
-          name: (o.type || 'box') + '_' + i,
-          primitives: [{
-            attributes: { POSITION: 0 },
-            material: i
-          }]
-        };
-      });
-      const materials = objects.map((o) => {
-        const mat = o.material || { metalness: 0.3, roughness: 0.7, opacity: 1.0 };
-        const color = o.color || '#FFCC00';
-        // Simple hex to linear RGB
-        const r = parseInt(color.slice(1,3), 16) / 255;
-        const g = parseInt(color.slice(3,5), 16) / 255;
-        const b = parseInt(color.slice(5,7), 16) / 255;
-        return {
-          name: 'mat_' + (o.id || ''),
+      const objs = state.spawnedObjects || [];
+      if (!objs.length) {
+        console.log('No objects to export as GLTF.');
+        return false;
+      }
+
+      function toBase64(buf) {
+        let binary = '';
+        const bytes = new Uint8Array(buf.buffer || buf);
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+      const positions = new Float32Array([
+        -0.25,-0.25,-0.25,  0.25,-0.25,-0.25,  0.25,0.25,-0.25,  -0.25,0.25,-0.25,
+        -0.25,-0.25,0.25,   0.25,-0.25,0.25,   0.25,0.25,0.25,   -0.25,0.25,0.25
+      ]);
+      const indices = new Uint16Array([
+        0,1,2, 0,2,3, 4,6,5, 4,7,6, 0,4,5, 0,5,1, 1,5,6, 1,6,2, 2,6,7, 2,7,3, 3,7,4, 3,4,0
+      ]);
+      const posB64 = toBase64(positions);
+      const idxB64 = toBase64(indices);
+
+      const materials = [];
+      const nodes = [];
+      objs.forEach((obj) => {
+        const col = obj.color || '#FFCC00';
+        const r = parseInt(col.slice(1,3), 16) / 255 || 1;
+        const g = parseInt(col.slice(3,5), 16) / 255 || 0.8;
+        const b = parseInt(col.slice(5,7), 16) / 255 || 0;
+        const mat = obj.material || { metalness: 0.3, roughness: 0.7, opacity: 1.0 };
+        materials.push({
+          name: `mat-${obj.id}`,
           pbrMetallicRoughness: {
             baseColorFactor: [r, g, b, mat.opacity || 1],
             metallicFactor: mat.metalness || 0.3,
             roughnessFactor: mat.roughness || 0.7
           },
           alphaMode: (mat.opacity < 1) ? 'BLEND' : 'OPAQUE'
-        };
+        });
+        const posParts = (obj.pos || '0 1 -2').split(' ').map(Number);
+        nodes.push({
+          name: obj.id,
+          translation: [posParts[0] || 0, posParts[1] || 1, posParts[2] || -2],
+          mesh: 0
+        });
       });
+
       const gltf = {
-        asset: { version: '2.0', generator: 'Quest VR Creator' },
+        asset: { version: '2.0', generator: 'Quest VR Creator Grok Automation' },
         scene: 0,
-        scenes: [{ nodes: objects.map((_, i) => i) }],
-        nodes,
-        meshes,
-        materials,
-        accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', max: [0.25,0.25,0.25], min: [-0.25,-0.25,-0.25] }],
-        bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }],
-        buffers: [{ byteLength: 36, uri: 'data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }]
+        scenes: [{ nodes: nodes.map((_, i) => i) }],
+        nodes: nodes,
+        meshes: [{
+          primitives: [{
+            attributes: { POSITION: 0 },
+            indices: 1,
+            material: 0
+          }]
+        }],
+        materials: materials.length ? materials : [{ pbrMetallicRoughness: { baseColorFactor: [1,0.8,0,1], metallicFactor: 0.3, roughnessFactor: 0.7 } }],
+        accessors: [
+          { bufferView: 0, componentType: 5126, count: 8, type: 'VEC3', max: [0.25,0.25,0.25], min: [-0.25,-0.25,-0.25] },
+          { bufferView: 1, componentType: 5123, count: 36, type: 'SCALAR' }
+        ],
+        bufferViews: [
+          { buffer: 0, byteOffset: 0, byteLength: positions.byteLength, target: 34962 },
+          { buffer: 1, byteOffset: 0, byteLength: indices.byteLength, target: 34963 }
+        ],
+        buffers: [
+          { byteLength: positions.byteLength, uri: 'data:application/octet-stream;base64,' + posB64 },
+          { byteLength: indices.byteLength, uri: 'data:application/octet-stream;base64,' + idxB64 }
+        ]
       };
+
       const blob = new Blob([JSON.stringify(gltf, null, 2)], { type: 'model/gltf+json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'quest-vr-creator-scene.gltf';
+      a.download = `quest-vr-scene-${Date.now()}.gltf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      console.log('📦 Exported minimal glTF 2.0 (' + objects.length + ' objects)');
+      console.log(`📦 Scene exported as basic GLTF (${objs.length} objects, PBR materials).`);
       return true;
     }, 'Export Scene GLTF', false);
   };
 
+  // NEW: Scene share via URL hash (base64 compact state)
   window.shareSceneViaHash = function() {
     return window.safeExecute(() => {
       const state = window.VRCreatorState;
-      const data = {
+      const compact = {
+        v: 1,
         o: (state.spawnedObjects || []).map(o => ({
           t: o.type,
           p: o.pos,
@@ -316,46 +384,75 @@
           m: o.material
         })),
         tool: state.selectedTool,
-        color: state.selectedColor,
-        mat: state.materialPreset
+        col: state.selectedColor,
+        mat: state.materialPreset,
+        sm: state.selectedMaterial
       };
-      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-      const url = location.origin + location.pathname + '#' + encoded;
-      location.hash = encoded;
+      const json = JSON.stringify(compact);
+      const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      if (b64.length > 8000) {
+        console.warn('Share hash too long for some browsers; truncated objects may apply.');
+      }
+      const hash = '#vrc=' + b64;
+      try {
+        location.hash = hash;
+      } catch (e) {}
+      const fullUrl = (location.origin || '') + (location.pathname || '') + hash;
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(() => console.log('🔗 Scene shared via URL hash + clipboard')).catch(() => console.log('🔗 Scene shared via URL hash'));
+        navigator.clipboard.writeText(fullUrl).then(() => {
+          console.log('🔗 Scene shared via URL hash + copied to clipboard.');
+        }).catch(() => {
+          console.log('🔗 Scene shared via URL hash (clipboard fallback).');
+          try { prompt('Copy this share URL:', fullUrl); } catch(e) {}
+        });
       } else {
-        console.log('🔗 Scene shared via URL hash');
+        try { prompt('Copy this share URL:', fullUrl); } catch(e) {}
+        console.log('🔗 Scene shared via URL hash (prompt).');
       }
       return true;
     }, 'Share Scene Via Hash', false);
   };
 
+  // NEW: Load from URL hash if present
   window.loadSceneFromHash = function() {
     return window.safeExecute(() => {
-      if (!location.hash || location.hash.length < 10) return false;
-      const encoded = location.hash.slice(1);
-      const json = decodeURIComponent(escape(atob(encoded)));
+      const hash = location.hash || '';
+      if (!hash.startsWith('#vrc=')) return false;
+      const b64 = hash.slice(5).replace(/-/g, '+').replace(/_/g, '/');
+      let json;
+      try {
+        json = decodeURIComponent(escape(atob(b64)));
+      } catch (e) {
+        console.warn('Invalid share hash.');
+        return false;
+      }
       const data = JSON.parse(json);
-      if (!data.o || !Array.isArray(data.o)) return false;
-      if (typeof window.clearAllSpawned === 'function') window.clearAllSpawned();
+      if (!data || !Array.isArray(data.o)) {
+        console.warn('Invalid share data.');
+        return false;
+      }
+      window.clearAllSpawned();
+      window.updateVRState({
+        selectedTool: data.tool || 'cube',
+        selectedColor: data.col || null,
+        materialPreset: data.mat || 'standard',
+        selectedMaterial: data.sm || { metalness: 0.3, roughness: 0.7, opacity: 1.0 }
+      });
       data.o.forEach(obj => {
         if (typeof window.spawnIntelligentObject === 'function') {
-          window.spawnIntelligentObject(obj.t || 'cube', {
+          window.spawnIntelligentObject(obj.t, {
             color: obj.c,
-            material: obj.m,
-            positionOverride: obj.p
+            positionOverride: obj.p,
+            material: obj.m
           });
         }
       });
-      if (data.tool) window.selectTool && window.selectTool(data.tool);
-      if (data.color) window.setSelectedColor && window.setSelectedColor(data.color);
-      if (data.mat) window.setMaterialPreset && window.setMaterialPreset(data.mat);
       console.log(`🔗 Scene loaded from URL hash (${data.o.length} objects).`);
       return true;
     }, 'Load Scene From Hash', false);
   };
 
+  // NEW: Toggle holographic wrist attachment
   window.toggleHolographic = function() {
     return window.safeExecute(() => {
       const tablet = document.querySelector('#tablet');
