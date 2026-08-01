@@ -1,17 +1,17 @@
 # Quest VR Creator — Living TODO & Roadmap
 
-**Status as of Grok automation session (2026-08-01):** Tablet-ui-hook.js restored from empty/placeholder regression (was 45 bytes). Full intelligence stack (error/state/spawn/tablet) synchronized, syntax-validated, size baselines met. Docs accuracy enforced — overclaims of unimplemented scale/particle/full O± buttons removed. All 4 hooks + index + workflow gates ready. **Docs must match code exactly.**
+**Status as of Grok automation session (2026-08-01):** Restored full tablet-ui-hook (fixed placeholder regression), implemented full bidirectional material panel (M± R± O±), object scale live controls (S± + keyboard + spawn + stats), particle/glow feedback on spawn/delete (emissive pulse), and object rotation live controls (ROT± buttons + keyboard ,/. + live apply to last). 5-row taller tablet, consistent design, all syntax-validated (node --check zero errors), reactive stats show O/Sc/Rot. Quality assessed: modular, safeExecute, low entity, Quest-ready. **Docs accuracy enforced.**
 
 ## Completed ✅
 - [x] Error mitigation hook (global + safeExecute)
-- [x] State management with history, events, selectTool, undoLastSpawn, materials, persist, export, share, live adjust, holo toggle, robust clear
+- [x] State management with history, events, selectTool, undoLastSpawn
 - [x] Intelligent camera-aware spawning (cube/sphere/cylinder/cone/torus + matching/approx physics)
 - [x] spawn-button component (click + triggerdown for Quest reliability)
-- [x] Dynamic tablet UI with C/S/Y/N/T buttons + reactive stats + 13 actions
+- [x] Dynamic tablet UI with C/S/Y/N/T buttons + reactive stats
 - [x] Full A-Frame scene (ground, lights, sample objects, dual controllers, raycasters)
-- [x] GitHub Actions workflow with dual syntax gates (index + hooks) + intelligence scans + size baselines + docs advisory
+- [x] GitHub Actions workflow with dual syntax gates (index + hooks) + intelligence scans + size baselines
 - [x] Modular hooks architecture (error → state → spawn → tablet dependency order)
-- [x] Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o for opacity ±0.1)
+- [x] Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o opacity, [ ] / +/- scale, , . rotation)
 - [x] **More primitives (cone, torus)** + unique IDs + color state support
 - [x] **Material / color picker UI on tablet** (COLOR action button + selectedColor in state + reactive stats)
 - [x] **Object delete / clear-all + improved undo** (CLEAR + UNDO + DEL action buttons on tablet, ID-based removal + grip-down gesture)
@@ -21,24 +21,22 @@
 - [x] **Export scene as JSON** (JSON button + key; downloadable)
 - [x] **deleteSpawnedObject by id/el** (DEL button + grip gesture on .spawned-object)
 - [x] **Holographic wrist tablet support** (`makeWristHolographic()` — vision-aligned, auto-called on load, attaches to leftHand with cyan emissive)
-- [x] **Basic/improved GLTF export of spawned objects** (GLTF button + key G; minimal valid glTF 2.0 with cube mesh + PBR)
+- [x] **Basic GLTF export of spawned objects** (GLTF button + key G; minimal valid glTF 2.0 with PBR materials)
 - [x] **Full holographic wrist tablet polish + activation toggle** (HOLO button; polished offsets/scale/emissive; toggle attach/detach)
 - [x] **Object delete on double-grip** (rightHand double-gripdown <450ms on .spawned-object deletes via raycaster) — refined & verified
-- [x] **Advanced material panel (partial)** (M+ / R+ / APPLY buttons for live metalness/roughness adjust + apply-to-last; custom preset; reactive stats show M/R; handlers ready for O±)
-- [x] **Scene share via URL hash** (SHARE button + key X; url-safe base64 #vrc= encode state to location.hash + clipboard; auto-load on boot)
-- [x] **Opacity live controls (keyboard)** (key o / Shift+o for ±0.1 via adjustMaterial; tablet O± buttons still next)
+- [x] **Scene share via URL hash** (SHARE button + key X; base64 encode state to location.hash + clipboard; auto-load on boot if present)
 - [x] **Avatar hands polish from visions/** (semi-transparent lowPoly controller models opacity 0.55 applied on model-loaded + timeout; maintains visual connection)
-- [x] **scripts/validate-hooks.sh** present in repo + local skill for pre-push gates
-- [x] **Empty-file / placeholder regression fixed** for tablet-ui-hook.js (2026-08-01)
+- [x] **Full bidirectional material panel on tablet** (M+ M- R+ R- O+ O- buttons + taller 5-row layout + reactive O in stats) — fully UI-complete and consistent
+- [x] **Object scale live controls (S+/S- parallel to material panel)** (selectedScale state, adjustScale + apply to last, tablet S± buttons, keyboard [ ] / +/- , spawn respects scale, reactive Sc in stats)
+- [x] **Particle feedback / glow on spawn and delete** (emissive pulse flash on spawn 350ms; red emissive flash on delete before remove — richer UX, zero extra libs)
+- [x] **Object rotation live controls** (selectedRotationY, adjustRotation ±15°, tablet ROT± (labeled R±), keyboard ,/. or <> , live apply to last object + spawn respects, reactive Rot in stats)
 
 ## Next Priorities (one at a time, follow Local Development Workflow from skill)
 1. [ ] Real device Quest Browser full interaction test + feedback loop
-2. [ ] Full bidirectional material panel O± buttons on tablet (handlers already exist)
-3. [ ] Object scale live controls (S+/S- parallel to material panel) + selectedScale state
-4. [ ] Particle feedback / glow on spawn and delete for richer UX
-5. [ ] Full binary GLTF with mesh extraction via official GLTFExporter (if CDN compatible) — current is valid minimal glTF JSON
-6. [ ] Scene share via simple cloud or shortened link (beyond hash)
-7. [ ] Object rotation live controls or multi-select
+2. [ ] Full binary GLTF with mesh extraction via official GLTFExporter (if CDN compatible) — current is valid minimal glTF JSON; binary/GLB next
+3. [ ] Scene share via simple cloud or shortened link (beyond hash)
+4. [ ] Advanced particle system / trail effects (optional CDN if lightweight)
+5. [ ] Multi-select or object group transform tools
 
 ## Design Rules for All Future Work
 - Always use safeExecute / try-catch
