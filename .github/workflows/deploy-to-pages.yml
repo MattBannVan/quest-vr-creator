@@ -56,6 +56,10 @@ jobs:
               echo "❌ $hook too small ($size bytes) — possible empty/placeholder"
               exit 1
             fi
+            if grep -qE "PLACEHOLDER_WILL_BE_REPLACED|TODO_REPLACE|EMPTY_HOOK" "$hook" 2>/dev/null; then
+              echo "❌ $hook contains placeholder text — intelligence regression"
+              exit 1
+            fi
             echo "✅ $hook OK ($size bytes)"
           done
           echo "✅ All syntax gates passed"

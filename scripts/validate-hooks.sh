@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Local mirror of the GitHub Actions validation gates for quest-vr-creator hooks + index.
 # Enhanced for more intelligence: optional index.html cross-check, stricter size baselines for expanded + improved features (robust GLTF mesh, url-safe share), docs advisory.
+# Now also detects placeholder text regressions.
 # Run from skill dir or repo root after changes. Embodies less-errors + more-intelligence.
 # Usage: ./scripts/validate-hooks.sh [hooks-dir] [index.html path]
 set -euo pipefail
@@ -27,6 +28,10 @@ for hook in "$HOOKS_DIR"/*.js; do
   size=$(wc -c < "$hook")
   if [ "$size" -lt 500 ]; then
     echo "❌ $hook too small ($size bytes) — possible placeholder"
+    exit 1
+  fi
+  if grep -qE "PLACEHOLDER_WILL_BE_REPLACED|TODO_REPLACE|EMPTY_HOOK" "$hook" 2>/dev/null; then
+    echo "❌ $hook contains placeholder text — intelligence regression"
     exit 1
   fi
   # Stricter baselines matching current expanded + improved feature set
