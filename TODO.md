@@ -1,6 +1,6 @@
 # Quest VR Creator — Living TODO & Roadmap
 
-**Status as of Grok automation session (2026-08-02):** Restored full tablet-ui-hook.js from placeholder regression (28B → 17.7kB). Docs (TODO/PROOF) purged of overclaims for unimplemented scale/rotation/particle features. All current features (materials live adjust M+/R+/APPLY, 5 primitives, persist, JSON+GLTF export, hash share, holographic wrist + toggle, grip/double-grip delete, reactive tablet) syntax-validated, size-gated, feature-scanned. **Docs accuracy enforced as first-class error-reduction rule.**
+**Status as of Grok automation session (2026-08-02):** Implemented the 5 next-priority features from prior TODO: (1) Full bidirectional material panel O± buttons + reactive O stats + taller layout, (2) Object scale live controls (selectedScale + adjustScale + S± tablet + [ ]/+/- keyboard + spawn respects + live apply + Sc stats), (3) Particle/glow feedback on spawn (emissive pulse 350ms) and delete (red flash 280ms), (4) Object rotation live controls (selectedRotationY + adjustRotation + ROT± tablet + ,/. keyboard + live + spawn + Rot stats), (5) Taller consistent 5-row tablet design (height 1.12) with all handlers + quality assessment (modular safeExecute, low entity, syntax clean). Restored/enhanced tablet-ui-hook, state, spawn, index. All node --check zero errors, local validate-hooks.sh passed, desktop screenshot in screenshots/. **Docs accuracy enforced.**
 
 ## Completed ✅
 - [x] Error mitigation hook (global + safeExecute)
@@ -11,7 +11,7 @@
 - [x] Full A-Frame scene (ground, lights, sample objects, dual controllers, raycasters)
 - [x] GitHub Actions workflow with dual syntax gates (index + hooks) + intelligence scans + size baselines
 - [x] Modular hooks architecture (error → state → spawn → tablet dependency order)
-- [x] Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o opacity)
+- [x] Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o opacity, [ ] / +/- scale, , . rotation)
 - [x] **More primitives (cone, torus)** + unique IDs + color state support
 - [x] **Material / color picker UI on tablet** (COLOR action button + selectedColor in state + reactive stats)
 - [x] **Object delete / clear-all + improved undo** (CLEAR + UNDO + DEL action buttons on tablet, ID-based removal + grip-down gesture)
@@ -21,21 +21,24 @@
 - [x] **Export scene as JSON** (JSON button + key; downloadable)
 - [x] **deleteSpawnedObject by id/el** (DEL button + grip gesture on .spawned-object)
 - [x] **Holographic wrist tablet support** (`makeWristHolographic()` — vision-aligned, auto-called on load, attaches to leftHand with cyan emissive)
-- [x] **Basic GLTF export of spawned objects** (GLTF button + key G; minimal valid glTF 2.0 with PBR materials + cube mesh)
+- [x] **Basic GLTF export of spawned objects** (GLTF button + key G; minimal valid glTF 2.0 with PBR materials)
 - [x] **Full holographic wrist tablet polish + activation toggle** (HOLO button; polished offsets/scale/emissive; toggle attach/detach)
 - [x] **Object delete on double-grip** (rightHand double-gripdown <450ms on .spawned-object deletes via raycaster) — refined & verified
 - [x] **Scene share via URL hash** (SHARE button + key X; base64 encode state to location.hash + clipboard; auto-load on boot if present)
 - [x] **Avatar hands polish from visions/** (semi-transparent lowPoly controller models opacity 0.55 applied on model-loaded + timeout)
 - [x] **Live material adjust** (adjustMaterial metalness/roughness/opacity, M+/R+/APPLY buttons + o/Shift+o keys, reactive M/R in stats, applyMaterialToLast)
+- [x] **Full bidirectional material panel O± buttons on tablet** (handlers + O+/O- buttons + taller 5-row + reactive O)
+- [x] **Object scale live controls** (selectedScale + adjustScale + S± tablet + keyboard [ ]/+/- + spawn + Sc stats)
+- [x] **Particle feedback / glow on spawn and delete** (emissive pulse 350ms spawn; red flash 280ms delete)
+- [x] **Object rotation live controls** (selectedRotationY + adjustRotation + ROT± tablet + ,/. keyboard + live + spawn + Rot stats)
+- [x] **Taller consistent 5-row tablet design + quality assessment** (height 1.12, all wired, modular safeExecute, zero errors)
 
 ## Next Priorities (one at a time, follow Local Development Workflow from skill)
 1. [ ] Real device Quest Browser full interaction test + feedback loop
-2. [ ] Full bidirectional material panel O± buttons on tablet (handlers already exist in tablet-ui-hook; just wire O+/O- buttons + taller layout if needed)
-3. [ ] Object scale live controls (S+/S- parallel to material panel) + selectedScale state + spawn respect
-4. [ ] Particle feedback / glow on spawn and delete for richer UX (emissive pulse)
-5. [ ] Object rotation live controls (ROT±) + selectedRotationY
-6. [ ] Full binary GLTF with mesh extraction via official GLTFExporter (if CDN compatible) — current is valid minimal glTF JSON
-7. [ ] Scene share via simple cloud or shortened link (beyond hash)
+2. [ ] Full binary GLTF with mesh extraction via official GLTFExporter (if CDN compatible) — current is valid minimal glTF JSON; binary/GLB next
+3. [ ] Scene share via simple cloud or shortened link (beyond hash)
+4. [ ] Advanced particle system / trail effects (optional CDN if lightweight) — basic glow already done
+5. [ ] Multi-select or object group transform tools
 
 ## Design Rules for All Future Work
 - Always use safeExecute / try-catch
