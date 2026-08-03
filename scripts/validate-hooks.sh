@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Local mirror of the GitHub Actions validation gates for quest-vr-creator hooks + index.
 # Enhanced for more intelligence: optional index.html cross-check, stricter size baselines for expanded + improved features (robust GLTF mesh, url-safe share), docs advisory.
-# Now also detects placeholder text regressions.
+# Now also detects placeholder text regressions + specific overclaim patterns for scale/rot/particle/O± to prevent repeating 2026-08 desyncs.
 # Run from skill dir or repo root after changes. Embodies less-errors + more-intelligence.
 # Usage: ./scripts/validate-hooks.sh [hooks-dir] [index.html path]
 set -euo pipefail
@@ -103,13 +103,47 @@ else
   echo "ℹ️ No index.html at $INDEX_HTML — skipping cross-check (ok for pure skill hooks validation)"
 fi
 
-# Docs consistency advisory (reduce future desync errors)
+# Docs consistency advisory + hard-ish checks for common overclaims (reduce future desync errors — more intelligence)
 if [ -f "TODO.md" ]; then
-  echo "🧠 Docs advisory (TODO.md presence of overclaimed vs actual)..."
-  if grep -q "Basic export of spawned objects as GLTF\|Scene share via URL hash\|Advanced material panel\|double-grip" TODO.md 2>/dev/null; then
-    if ! grep -q "exportSceneGLTF\|loadSceneFromHash\|adjustMaterial\|toBase64\|vrc=" "$HOOKS_DIR"/*.js 2>/dev/null; then
-      echo "⚠️ TODO.md mentions advanced features (GLTF/share/adjust) not present in hooks — docs desync risk. Correct TODO before claiming complete."
+  echo "🧠 Docs advisory + overclaim detection (TODO.md vs actual code)..."
+  # Check that claimed-complete advanced features actually exist in code
+  OVERCLAIM=0
+  if grep -qE "\[x\].*[Oo]bject scale live controls|\[x\].*selectedScale|\[x\].*adjustScale" TODO.md 2>/dev/null; then
+    if ! grep -qE "selectedScale|adjustScale" "$HOOKS_DIR"/*.js index.html 2>/dev/null; then
+      echo "❌ TODO.md marks Object scale live controls as complete but selectedScale/adjustScale missing from hooks — docs desync HARD FAIL risk"
+      OVERCLAIM=1
     fi
+  fi
+  if grep -qE "\[x\].*[Oo]bject rotation live controls|\[x\].*selectedRotation|\[x\].*adjustRotation" TODO.md 2>/dev/null; then
+    if ! grep -qE "selectedRotation|adjustRotation" "$HOOKS_DIR"/*.js index.html 2>/dev/null; then
+      echo "❌ TODO.md marks Object rotation as complete but symbols missing — docs desync"
+      OVERCLAIM=1
+    fi
+  fi
+  if grep -qE "\[x\].*[Pp]article feedback|\[x\].*emissive pulse|\[x\].*glow on spawn" TODO.md 2>/dev/null; then
+    if ! grep -qE "emissiveIntensity|particle|pulse.*spawn|flash.*delete" "$HOOKS_DIR"/*.js index.html 2>/dev/null; then
+      echo "❌ TODO.md marks Particle/glow feedback as complete but no evidence in code — docs desync"
+      OVERCLAIM=1
+    fi
+  fi
+  if grep -qE "\[x\].*[Ff]ull bidirectional material panel O|\[x\].*O± buttons on tablet|\[x\].*taller consistent 5-row" TODO.md 2>/dev/null; then
+    if ! grep -qE "action-oplus|O\+|action-ominus" "$HOOKS_DIR"/tablet-ui-hook.js 2>/dev/null; then
+      echo "⚠️ TODO.md claims full O± panel complete but O+ / O- buttons not wired in tablet init — partial (handlers exist)"
+    fi
+  fi
+  # Legacy advanced features must be present if mentioned as complete
+  if grep -qE "\[x\].*GLTF|\[x\].*hash share|\[x\].*live material adjust" TODO.md 2>/dev/null; then
+    if ! grep -q "exportSceneGLTF\|shareSceneViaHash\|adjustMaterial\|toBase64\|vrc=" "$HOOKS_DIR"/*.js 2>/dev/null; then
+      echo "❌ TODO.md claims GLTF/share/adjust complete but core symbols missing — docs desync"
+      OVERCLAIM=1
+    fi
+  fi
+  if [ $OVERCLAIM -ne 0 ]; then
+    echo "❌ Docs overclaim detected — correct TODO.md before claiming intelligence. (This gate protects future sessions from repeating the 2026-08-02/03 desync.)"
+    # Non-hard exit for now so existing workflow continues; change to exit 1 when ready for strictness
+    # exit 1
+  else
+    echo "✅ No hard overclaims detected in TODO.md vs code symbols"
   fi
 fi
 

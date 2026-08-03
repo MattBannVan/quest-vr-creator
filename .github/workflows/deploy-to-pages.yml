@@ -165,16 +165,45 @@ jobs:
             exit 1
           fi
 
-      - name: Docs-desync advisory (TODO accuracy) + scripts presence
+      - name: Docs-desync advisory + overclaim detection (TODO accuracy) + scripts presence
         run: |
-          echo "🧠 Docs advisory + scripts..."
+          echo "🧠 Docs advisory + overclaim detection + scripts..."
+          OVERCLAIM=0
           if [ -f TODO.md ]; then
-            if grep -qE "GLTF|hash share|advanced material|double-grip|HOLO" TODO.md; then
-              if ! grep -qE "exportSceneGLTF|shareSceneViaHash|adjustMaterial|toggleHolographic|toBase64|vrc=" hooks/*.js; then
-                echo "⚠️ TODO.md mentions advanced features not present in hooks — docs desync risk"
-              else
-                echo "✅ TODO advanced features confirmed present in hooks"
+            if grep -qE "\[x\].*[Oo]bject scale live controls|\[x\].*selectedScale|\[x\].*adjustScale" TODO.md 2>/dev/null; then
+              if ! grep -qE "selectedScale|adjustScale" hooks/*.js index.html 2>/dev/null; then
+                echo "❌ TODO.md marks Object scale as complete but symbols missing — docs desync"
+                OVERCLAIM=1
               fi
+            fi
+            if grep -qE "\[x\].*[Oo]bject rotation live controls|\[x\].*selectedRotation|\[x\].*adjustRotation" TODO.md 2>/dev/null; then
+              if ! grep -qE "selectedRotation|adjustRotation" hooks/*.js index.html 2>/dev/null; then
+                echo "❌ TODO.md marks Object rotation as complete but symbols missing — docs desync"
+                OVERCLAIM=1
+              fi
+            fi
+            if grep -qE "\[x\].*[Pp]article feedback|\[x\].*emissive pulse|\[x\].*glow on spawn" TODO.md 2>/dev/null; then
+              if ! grep -qE "emissiveIntensity|particle|pulse.*spawn|flash.*delete" hooks/*.js index.html 2>/dev/null; then
+                echo "❌ TODO.md marks Particle/glow as complete but no evidence — docs desync"
+                OVERCLAIM=1
+              fi
+            fi
+            if grep -qE "\[x\].*[Ff]ull bidirectional material panel O|\[x\].*O± buttons on tablet|\[x\].*taller consistent 5-row" TODO.md 2>/dev/null; then
+              if ! grep -qE "action-oplus|O\+|action-ominus" hooks/tablet-ui-hook.js 2>/dev/null; then
+                echo "⚠️ TODO claims full O± panel but buttons not fully wired (handlers exist)"
+              fi
+            fi
+            if grep -qE "\[x\].*GLTF|\[x\].*hash share|\[x\].*live material adjust" TODO.md 2>/dev/null; then
+              if ! grep -q "exportSceneGLTF\|shareSceneViaHash\|adjustMaterial\|toBase64\|vrc=" hooks/*.js 2>/dev/null; then
+                echo "❌ TODO claims GLTF/share/adjust complete but core missing — docs desync"
+                OVERCLAIM=1
+              fi
+            fi
+            if [ $OVERCLAIM -ne 0 ]; then
+              echo "❌ Docs overclaim detected — correct TODO.md. Gate protects against repeating 2026-08 desyncs."
+              # Soft for now; can harden to exit 1 later
+            else
+              echo "✅ No hard overclaims in TODO vs code"
             fi
           fi
           if [ ! -s index.html ] || [ ! -s hooks/state-management-hook.js ] || [ ! -s hooks/tablet-ui-hook.js ]; then
@@ -203,6 +232,6 @@ jobs:
       - name: Post-validation intelligence report
         run: |
           echo "🚀 Deploy complete. Quest VR Creator intelligence stack validated."
-          echo "Features: 5 primitives, materials (5 presets + live M/R/O adjust), persist, JSON+improved-GLTF export (with mesh), URL-safe hash share, holographic wrist + toggle, double-grip delete, reactive tablet (13+ actions), avatar hands polish."
-          echo "Follow Local Development Workflow from skill for future changes. Docs must match code."
+          echo "Features: 5 primitives, materials (5 presets + live M/R/O adjust via keys/handlers), persist, JSON+improved-GLTF export (with mesh), URL-safe hash share, holographic wrist + toggle, double-grip delete, reactive tablet (13+ actions), avatar hands polish."
+          echo "Follow Local Development Workflow from skill for future changes. Docs must match code. Overclaim detection now active."
           echo "Everything done with Grok using automations — less errors, more intelligence."
