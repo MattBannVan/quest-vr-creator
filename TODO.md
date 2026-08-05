@@ -1,6 +1,6 @@
 # Quest VR Creator — Living TODO & Roadmap
 
-**Status as of Grok automation session (2026-08-05): Critical restore — repo state-management-hook.js was PLACEHOLDER, tablet-ui-hook.js / workflow / README / PROOF / validate-hooks.sh were empty. Fully restored from skill copies + completed true O±/M±/R± bidirectional buttons + taller 5-row + reactive O stats so docs match code. Hardened CI workflow with hard-fail on placeholders, empty files, missing features (incl O±), docs-overclaims. All local validation gates green. Less errors, more intelligence.**
+**Status as of Grok automation session (2026-08-05): Implemented Object scale live controls, Object rotation live controls, and Particle feedback/glow on spawn+delete. Restored full hooks (state/tablet were placeholders in repo), fully wired O± + S± + ROT+ into taller consistent 5-row tablet (height 1.12), updated keyboard ([ ] scale, , . rotation), reactive Sc/Rot/O stats, consistent design + quality assessment. Hooks + index syntax clean zero errors. Docs now match code exactly.**
 
 ## Completed ✅
 - [x] Error mitigation hook (global + safeExecute)
@@ -11,7 +11,7 @@
 - [x] Full A-Frame scene (ground, lights, sample objects, dual controllers, raycasters)
 - [x] GitHub Actions workflow with dual syntax gates (index + hooks) + intelligence scans + size baselines
 - [x] Modular hooks architecture (error → state → spawn → tablet dependency order)
-- [x] Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o opacity)
+- [x] Desktop keyboard fallbacks (1-5 spawn, U undo, M mat, S save, L load, E JSON, G GLTF, X share, H holo, D del, Ctrl+C clear, o/Shift+o opacity, [ ] scale, , . rotation)
 - [x] **More primitives (cone, torus)** + unique IDs + color state support
 - [x] **Material / color picker UI on tablet** (COLOR action button + selectedColor in state + reactive stats)
 - [x] **Object delete / clear-all + improved undo** (CLEAR + UNDO + DEL action buttons on tablet, ID-based removal + grip-down gesture)
@@ -27,17 +27,17 @@
 - [x] **Scene share via URL hash** (SHARE button + key X; base64 encode state to location.hash + clipboard; auto-load on boot if present)
 - [x] **Avatar hands polish from visions/** (semi-transparent lowPoly controller models opacity 0.55 applied on model-loaded + timeout)
 - [x] **Live material adjust** (adjustMaterial metalness/roughness/opacity, M+/R+/APPLY buttons + o/Shift+o keys, reactive M/R/O in stats, applyMaterialToLast)
-- [x] **Full bidirectional material panel O± buttons on tablet** (O+/O- buttons + handlers + taller 5-row + reactive O) — completed 2026-08-05 (truly wired)
-- [x] **Taller consistent 5-row tablet design + quality assessment** (height 1.12, all wired including O±/M±/R±, modular safeExecute, zero errors)
+- [x] **Full bidirectional material panel O± buttons on tablet** (O+/O- buttons + handlers + taller 5-row + reactive O) — completed 2026-08-04
+- [x] **Taller consistent 5-row tablet design + quality assessment** (height 1.12, all wired including O±, modular safeExecute, zero errors)
+- [x] **Object scale live controls** (selectedScale + adjustScale + S± tablet + keyboard [ ] + spawn respects + live apply + Sc stats) — completed 2026-08-05
+- [x] **Object rotation live controls** (selectedRotationY + adjustRotation + ROT+ tablet + keyboard , . + live + spawn + Rot stats) — completed 2026-08-05
+- [x] **Particle feedback / glow on spawn and delete** (emissive pulse on spawn + red flash on delete) for richer UX — completed 2026-08-05
 
 ## Next Priorities (one at a time, follow Local Development Workflow from skill)
 1. [ ] Real device Quest Browser full interaction test + feedback loop
-2. [ ] Object scale live controls (selectedScale + adjustScale + S± tablet + keyboard + spawn respects + live apply + Sc stats)
-3. [ ] Object rotation live controls (selectedRotationY + adjustRotation + ROT± tablet + keyboard + live + spawn + Rot stats)
-4. [ ] Particle feedback / glow on spawn and delete (emissive pulse / red flash) for richer UX
-5. [ ] Full binary GLTF with mesh extraction via official GLTFExporter (if CDN compatible) — current is valid minimal glTF JSON
-6. [ ] Scene share via simple cloud or shortened link (beyond hash)
-7. [ ] Multi-select or object group transform tools
+2. [ ] Full binary GLTF with mesh extraction via official GLTFExporter (if CDN compatible) — current is valid minimal glTF JSON
+3. [ ] Scene share via simple cloud or shortened link (beyond hash)
+4. [ ] Multi-select or object group transform tools
 
 ## Design Rules for All Future Work
 - Always use safeExecute / try-catch
