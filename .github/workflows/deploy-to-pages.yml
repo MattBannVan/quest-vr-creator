@@ -1,1 +1,198 @@
-PLACEHOLDER
+name: Deploy to GitHub Pages + Intelligence Validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate hooks syntax + sizes (error elimination gate)
+        run: |
+          set -e
+          echo "🧠 Validating hooks syntax + size baselines..."
+          expected=("error-mitigation-hook.js" "state-management-hook.js" "spawn-intelligence-hook.js" "tablet-ui-hook.js")
+          for e in "${expected[@]}"; do
+            if [ ! -f "hooks/$e" ]; then
+              echo "❌ Missing required intelligence hook: $e"
+              exit 1
+            fi
+          done
+          for hook in hooks/*.js; do
+            echo "Checking $hook ..."
+            node --check "$hook" || { echo "❌ Syntax fail: $hook"; exit 1; }
+            size=$(wc -c < "$hook")
+            if [ "$size" -lt 500 ]; then
+              echo "❌ $hook too small ($size bytes) — possible placeholder/empty"
+              exit 1
+            fi
+            if grep -qE "PLACEHOLDER|TODO_REPLACE|EMPTY_HOOK" "$hook" 2>/dev/null; then
+              echo "❌ $hook contains placeholder text — intelligence regression"
+              exit 1
+            fi
+            base=$(basename "$hook")
+            if [ "$base" = "spawn-intelligence-hook.js" ] && [ "$size" -lt 5000 ]; then
+              echo "⚠️ $hook smaller than expected for 5-primitives + materials ($size)"
+            fi
+            if [ "$base" = "state-management-hook.js" ] && [ "$size" -lt 15000 ]; then
+              echo "❌ $hook smaller than expected for materials/persist/export/GLTF/share/adjust ($size) — hard fail"
+              exit 1
+            fi
+            if [ "$base" = "tablet-ui-hook.js" ] && [ "$size" -lt 14000 ]; then
+              echo "❌ $hook smaller than expected for 5 tools + actions + holographic + O± ($size) — hard fail"
+              exit 1
+            fi
+            echo "✅ $hook OK ($size bytes)"
+          done
+
+      - name: Feature intelligence scan (hooks + index)
+        run: |
+          set -e
+          echo "🧠 Feature intelligence scan..."
+          CRITICAL_FEATS=("VRCreatorState" "safeExecute" "spawnIntelligentObject" "initTabletUI" "clearAllSpawned" "setSelectedColor" "setMaterialPreset" "saveSceneToStorage" "loadSceneFromStorage" "exportSceneJSON" "makeWristHolographic" "deleteSpawnedObject" "exportSceneGLTF" "shareSceneViaHash" "loadSceneFromHash" "toggleHolographic" "adjustMaterial" "applyMaterialToLast" "action-oplus" "action-ominus")
+          for feat in "${CRITICAL_FEATS[@]}"; do
+            if grep -q "$feat" hooks/*.js index.html 2>/dev/null; then
+              echo "✅ $feat present"
+            else
+              echo "❌ $feat not found — intelligence regression HARD FAIL"
+              exit 1
+            fi
+          done
+          # Extra: O± buttons wired
+          if ! grep -q "action-oplus\|O+" hooks/tablet-ui-hook.js; then
+            echo "❌ O+ button missing from tablet — docs desync risk"
+            exit 1
+          fi
+          echo "✅ All critical features + O± panel present"
+
+      - name: Index.html cross-check + inline syntax
+        run: |
+          set -e
+          echo "🧠 Cross-checking index.html..."
+          for hookfile in error-mitigation-hook.js state-management-hook.js spawn-intelligence-hook.js tablet-ui-hook.js; do
+            if grep -q "hooks/$hookfile" index.html; then
+              echo "✅ index.html references hooks/$hookfile"
+            else
+              echo "❌ index.html missing script src for $hookfile"
+              exit 1
+            fi
+          done
+          for feat in "initTabletUI" "makeWristHolographic" "spawnIntelligentObject" "safeExecute" "VRCreatorState" "stats" "exportSceneGLTF" "shareSceneViaHash" "toggleHolographic" "loadSceneFromHash"; do
+            if grep -q "$feat" index.html; then
+              echo "✅ index.html uses $feat"
+            else
+              echo "⚠️ index.html may lack $feat reference"
+            fi
+          done
+          # Extract + check inline script
+          node -e '
+            const fs = require("fs");
+            const html = fs.readFileSync("index.html", "utf8");
+            const m = html.match(/<script>([\s\S]*?)<\/script>/);
+            if (m && m[1]) {
+              fs.writeFileSync("/tmp/vr-inline-check.js", m[1].trim());
+              console.log("Inline script extracted, length:", m[1].trim().length);
+            } else {
+              console.log("No inline <script> found");
+              process.exit(0);
+            }
+          '
+          if [ -f /tmp/vr-inline-check.js ]; then
+            node --check /tmp/vr-inline-check.js || { echo "❌ Inline script syntax FAIL"; exit 1; }
+            echo "✅ Inline index.html script syntax PASSED"
+          fi
+
+      - name: Docs desync / overclaim advisory (hard fail on known patterns)
+        run: |
+          set -e
+          echo "🧠 Docs advisory + overclaim detection..."
+          OVERCLAIM=0
+          if [ -f TODO.md ]; then
+            if grep -qE "\[x\].*[Oo]bject scale live controls|\[x\].*selectedScale|\[x\].*adjustScale" TODO.md 2>/dev/null; then
+              if ! grep -qE "selectedScale|adjustScale" hooks/*.js index.html 2>/dev/null; then
+                echo "❌ TODO.md marks Object scale as complete but symbols missing — HARD FAIL"
+                OVERCLAIM=1
+              fi
+            fi
+            if grep -qE "\[x\].*[Oo]bject rotation live controls|\[x\].*selectedRotation|\[x\].*adjustRotation" TODO.md 2>/dev/null; then
+              if ! grep -qE "selectedRotation|adjustRotation" hooks/*.js index.html 2>/dev/null; then
+                echo "❌ TODO.md marks Object rotation as complete but symbols missing — HARD FAIL"
+                OVERCLAIM=1
+              fi
+            fi
+            if grep -qE "\[x\].*[Pp]article feedback|\[x\].*emissive pulse|\[x\].*glow on spawn" TODO.md 2>/dev/null; then
+              if ! grep -qE "emissiveIntensity|particle|pulse.*spawn|flash.*delete" hooks/*.js index.html 2>/dev/null; then
+                echo "❌ TODO.md marks Particle/glow as complete but no evidence — HARD FAIL"
+                OVERCLAIM=1
+              fi
+            fi
+            # Positive: O± should be claimed only if present (already scanned)
+            if grep -qE "\[x\].*[Ff]ull bidirectional material panel O|\[x\].*O± buttons" TODO.md 2>/dev/null; then
+              if ! grep -qE "action-oplus|O\+" hooks/tablet-ui-hook.js 2>/dev/null; then
+                echo "❌ TODO claims O± complete but buttons not in tablet — HARD FAIL"
+                OVERCLAIM=1
+              else
+                echo "✅ O± claim matches code"
+              fi
+            fi
+          fi
+          if [ $OVERCLAIM -ne 0 ]; then
+            echo "❌ Docs overclaim detected — correct TODO.md / code before deploy. Protects intelligence integrity."
+            exit 1
+          fi
+          echo "✅ No hard overclaims detected"
+
+      - name: Non-empty critical files check
+        run: |
+          set -e
+          for f in index.html README.md TODO.md hooks/state-management-hook.js hooks/tablet-ui-hook.js; do
+            if [ ! -s "$f" ]; then
+              echo "❌ Critical file empty or missing: $f"
+              exit 1
+            fi
+            echo "✅ $f non-empty ($(wc -c < $f) bytes)"
+          done
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Post-deploy intelligence report
+        run: |
+          echo "🚀 Deploy successful. Quest VR Creator intelligence layers validated:"
+          echo "  - Dual syntax (hooks + index inline)"
+          echo "  - Size baselines + no placeholders"
+          echo "  - Full feature set incl. O± bidirectional panel, materials, persist, GLTF, share, holo"
+          echo "  - Docs desync hard-fail gate active"
+          echo "  - Follow Local Development Workflow from skill for next changes"
+          echo "Everything done with Grok using automations — less errors, more intelligence."
